@@ -1,0 +1,33 @@
+# Multi-instance definition for the Voice PE Realtime voice agent.
+#
+# Tristan's add-on supports ONE device per add-on instance, so each speaker
+# needs its own add-on. Every instance is byte-identical except the four
+# values below, and they all share ONE published Docker image (nothing
+# device-specific is baked in — every option is read at runtime by run.sh via
+# bashio::config).
+#
+# To add a speaker: append an entry, commit. The workflow regenerates the
+# add-on directory and Home Assistant picks it up on its next store refresh.
+# Ports must be unique across ALL instances INCLUDING the original add-on
+# installed from Tristan's repository (that one uses 8080).
+
+upstream:
+  repo: https://github.com/TristanBrotherton/voicepe-realtime
+  ref: main
+  addon_dir: openai_realtime_voice_agent
+
+# Image shared by every instance. Supervisor appends ":<version>" and
+# substitutes {arch}. Built by .github/workflows/sync.yml.
+image_base: ghcr.io/shubrich/ha-voicepe-realtime-instances/openai-realtime-voice-agent
+
+# Only the architectures actually built and published. The HA host is
+# qemux86-64 (amd64). Adding aarch64 here means also adding it to the build
+# matrix in the workflow, which costs a slow QEMU-emulated build.
+arch:
+  - amd64
+
+instances:
+  - slug: openai_realtime_sat1
+    name: OpenAI Realtime 2 Voice Agent - Satellite1
+    websocket_port: 8082
+    instance_name: satellite1

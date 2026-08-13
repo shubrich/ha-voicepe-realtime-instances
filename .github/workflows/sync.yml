@@ -1,0 +1,103 @@
+name: Sync from upstream
+
+# Tracks TristanBrotherton/voicepe-realtime, publishes one shared image, and
+# regenerates every instance add-on directory.
+
+on:
+  schedule:
+    - cron: "0 6 * * *"
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - instances.yaml
+      - scripts/generate.py
+      - .github/workflows/sync.yml
+
+concurrency:
+  group: sync
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # commits the regenerated add-on directories
+      packages: write # pushes the shared image to ghcr.io
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/checkout@v4
+        with:
+          repository: TristanBrotherton/voicepe-realtime
+          ref: main
+          path: .upstream
+
+      - name: Read upstream version
+        id: v
+        run: |
+          VERSION=$(grep -m1 '^version:' .upstream/openai_realtime_voice_agent/config.yaml \
+            | sed 's/^version: *"\?\([^"]*\)"\?/\1/')
+          [ -n "$VERSION" ] || { echo "could not parse upstream version"; exit 1; }
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "upstream is at $VERSION"
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Is this version already published?
+        id: published
+        run: |
+          # Derive the tag from instances.yaml rather than github.repository so
+          # the image we push and the image the configs reference cannot drift.
+          IMAGE=$(grep -m1 '^image_base:' instances.yaml | sed 's/^image_base: *//')-amd64
+          echo "image=$IMAGE" >> "$GITHUB_OUTPUT"
+          if docker manifest inspect "$IMAGE:${{ steps.v.outputs.version }}" >/dev/null 2>&1; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+            echo "$IMAGE:${{ steps.v.outputs.version }} already exists, skipping build"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: docker/setup-buildx-action@v3
+        if: steps.published.outputs.exists == 'false'
+
+      # Build the image BEFORE committing the configs that reference it, so a
+      # failed build never leaves Home Assistant pointing at a missing tag.
+      - name: Build and push shared image
+        if: steps.published.outputs.exists == 'false'
+        uses: docker/build-push-action@v6
+        with:
+          context: ./.upstream/openai_realtime_voice_agent
+          file: ./.upstream/openai_realtime_voice_agent/Dockerfile
+          platforms: linux/amd64
+          push: true
+          tags: |
+            ${{ steps.published.outputs.image }}:${{ steps.v.outputs.version }}
+            ${{ steps.published.outputs.image }}:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          build-args: |
+            BUILD_FROM=ghcr.io/home-assistant/amd64-base-debian:bookworm
+
+      - name: Regenerate add-on directories
+        run: |
+          pip install --quiet ruamel.yaml
+          python3 scripts/generate.py .upstream
+
+      - name: Commit if anything changed
+        run: |
+          rm -rf .upstream
+          if [ -z "$(git status --porcelain)" ]; then
+            echo "nothing to commit"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "sync: upstream ${{ steps.v.outputs.version }}"
+          git push

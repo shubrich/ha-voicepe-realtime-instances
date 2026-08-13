@@ -1,0 +1,5 @@
+# Upstream checkout made by the sync workflow
+.upstream/
+# Half-written instance directories if generate.py is interrupted
+.gen-*/
+.DS_Store
