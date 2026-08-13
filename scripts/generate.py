@@ -28,12 +28,34 @@ from ruamel.yaml import YAML
 SUPPORT_FILES = ["icon.png", "logo.png", "DOCS.md", "CHANGELOG.md", "README.md"]
 SUPPORT_DIRS = ["translations"]
 
+# Per-instance option keys build_config() overrides. Guarded because these must
+# already exist upstream for the override to mean anything.
+OVERRIDDEN_OPTIONS = ("websocket_port", "instance_name")
+
 REPO = Path(__file__).resolve().parent.parent
 
 yaml = YAML()  # round-trip mode: preserves upstream's comments and key order
 yaml.preserve_quotes = True
 yaml.width = 4096  # don't rewrap long option strings such as `instructions`
 yaml.indent(mapping=2, sequence=4, offset=2)  # match upstream's list indenting
+
+
+def check_overridable(upstream_config):
+    """Refuse to run if upstream renamed an option we override.
+
+    Assigning into `options` CREATES a key rather than failing, so a rename
+    upstream would silently leave the real setting at its default: every
+    instance back on port 8080, colliding with the original add-on and with
+    each other. Checked once, before anything is written.
+    """
+    missing = [k for k in OVERRIDDEN_OPTIONS if k not in upstream_config["options"]]
+    if missing:
+        sys.exit(
+            f"upstream config.yaml no longer defines {', '.join(missing)} under "
+            "`options` — it was probably renamed. Overriding it now would be a "
+            "no-op and instances would fall back to upstream's defaults. Update "
+            "OVERRIDDEN_OPTIONS and build_config() to match upstream first."
+        )
 
 
 def build_config(upstream_config, inst, image_base, arch):
@@ -70,8 +92,10 @@ def main():
     if not (addon_src / "config.yaml").is_file():
         sys.exit(f"no config.yaml under {addon_src}")
 
-    version = yaml.load((addon_src / "config.yaml").read_text())["version"]
+    upstream_config = yaml.load((addon_src / "config.yaml").read_text())
+    version = upstream_config["version"]
     print(f"upstream version: {version}")
+    check_overridable(upstream_config)
 
     stale = False
     for inst in spec["instances"]:

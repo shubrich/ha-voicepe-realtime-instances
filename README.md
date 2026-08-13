@@ -46,6 +46,12 @@ installed from Tristan's repository, which uses 8080.
 The image is built before the configs referencing it are committed, so a failed
 build never leaves Home Assistant pointing at a tag that does not exist.
 
+If upstream ever renames `websocket_port` or `instance_name`, the generator
+exits non-zero rather than writing an override that would silently do nothing
+and drop every instance back to upstream's default port. GitHub emails you when
+a scheduled run fails, so that shows up as a broken sync instead of two add-ons
+quietly fighting over port 8080.
+
 ### Why generate instead of merging a fork
 
 Upstream bumps `version:` on line 2 of `config.yaml`; the overrides sit on lines
