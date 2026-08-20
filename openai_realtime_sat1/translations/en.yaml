@@ -207,9 +207,11 @@ configuration:
     description: >-
       Only used when a spoken language is set (Basics). This model writes
       your speech into the log as text — it does NOT affect how the assistant
-      understands you (it hears your actual voice). gpt-4o-transcribe
-      (default) is the most accurate. For an unlisted model pick "custom" and
-      enable "Show unused optional configuration options" at the bottom.
+      understands you (it hears your actual voice). gpt-live-transcribe is
+      optimized for low-latency live transcription; gpt-transcribe is optimized
+      for completed audio. gpt-4o-transcribe remains the default. For an
+      unlisted model pick "custom" and enable "Show unused optional
+      configuration options" at the bottom.
   transcription_model_custom:
     name: "⚙️ Advanced · Transcript model (custom)"
     description: >-
@@ -263,7 +265,12 @@ configuration:
     description: >-
       The device's timer_ringing switch entity (e.g.
       switch.voice_pe_timer_ringing). Voice timers announce first, then ring
-      this if unacknowledged. Leave empty to disable ringing.
+       this if unacknowledged. Leave empty to disable ringing.
+  timer_ring_entities:
+    name: "🧩 Fork · Per-device timer ring switches"
+    description: >-
+      For one shared multi-device add-on, map each device id to its timer switch:
+      kitchen=switch.kitchen_timer_ringing,office=switch.office_timer_ringing.
   enrollment_phrase:
     name: "🧩 Fork · Enrollment wake phrase"
     description: >-
