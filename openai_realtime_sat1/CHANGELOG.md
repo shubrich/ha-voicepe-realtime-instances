@@ -2,6 +2,124 @@
 
 All notable changes to this add-on. Newest first.
 
+## 0.19.1 (fork)
+
+
+### Added: explain mode for the household agent (router mode)
+
+"Can you explain how our bridge supports remote access?" is research, not a
+lookup (builds on the 0.19.0 router mode). The backend now calls `ask_openclaw` with `mode: "explain"` for a
+question about how the owner's own software, projects or systems work, are
+designed or stand. The request to the bridge carries a read-only research
+brief instead of the answer-only prefix (read the code and documents, change
+nothing, return a spoken summary of 20-40 seconds plus a short text version), a
+10-minute budget, and a session key that a follow-up within half an hour
+reuses, so "what about the auth part?" continues the same agent session.
+
+- The voice acknowledges at once, by name when the speaker is identified, in
+  one of several rotating phrasings (it takes a while, I'll get back to you,
+  a text summary is yours for the asking). When the route outlives the
+  soft budget the acknowledgement replaces the generic "still working" line,
+  so at most the fallback clip and one acknowledgement are heard.
+- The answer comes back by voice (the open conversation, a short new session
+  or an announcement in the Live voice) and is read in full, not briefly. The
+  task holds no session and is not narrated while it runs.
+- "Text would be great" after the acknowledgement (the new `deliver_by_text`
+  tool, chosen by the backend) switches that task to a text through the
+  bridge's verified iMessage sender. The add-on names the recognised speaker
+  (`notification_recipient`); the bridge resolves it to one of its routes or
+  its default owner route, so no option is needed (`live_task_imessage_to`
+  is an optional override). An open conversation hears "Done, it's in your
+  messages"; an idle device is not reopened for that. A text that cannot
+  be delivered falls back to voice. The text is the agent's short `TEXT:`
+  part (at most three plain sentences, trimmed by the add-on as well, no
+  header); an explanation that was spoken in the conversation is never
+  texted as well, and a text is the last route for one that could not be
+  spoken.
+- One explanation runs at a time (a second is refused by the bridge and the
+  voice says so). An explanation that never reports back is closed after
+  15 minutes.
+- An explanation spoken into an open session counts as delivered only once
+  it has been heard; a session closing under it (the device's follow-up
+  cut-off) hands the result to the next route (a reopened session, an
+  announcement) instead of losing it.
+- A result being spoken into a session holds that session until it has been
+  heard to the end (the device's follow-up cut-off and the add-on's own
+  follow-up-quiet close both used to cut it one sentence in).
+- Bridge contract: `mode`, `budget_s`; `/announce` and `/task-result` accept
+  `ok` and `detail` (the write-up) for a task result, and a task's text is
+  not cut at the bare lane's 600 characters. See `docs/agent-integration.md`.
+
+## 0.19.0 (fork)
+
+### Added: an experimental GPT-Live voice runtime (opt-in)
+
+Nothing changes for existing installs: `voice_runtime` defaults to the
+Realtime runtime. Setting `voice_runtime: live` (with
+`live_acknowledge_gaps`) runs the device on OpenAI's GPT-Live voice instead.
+See DOCS section 12, `docs/configuration.md` for every `live_*` option, and
+`docs/releases/0.19.0.md` for the release notes.
+
+- **Router mode (`live_router`, on by default inside Live).** The add-on, not
+  the voice model, decides and runs every tool. Home Assistant's own intent
+  engine is tried first (recognition only, safe device domains only); anything
+  else goes to a Responses backend called directly with the full tool set.
+  The voice speaks only results a tool verified; a success claim with no tool
+  behind it is never played.
+- **The backend knows the home.** Home Assistant's MCP `Assist` overview of
+  exposed entities, plus the floor and area registries (with aliases), sits in
+  the backend's cached prefix and is refreshed every 5 minutes and at wakes.
+  Loose wording ("upstairs bedroom", "the kitchen") is matched to real names.
+- **Room context from the satellite.** "Turn on the lights" acts on the room
+  of the satellite that heard it, found from its network address and Home
+  Assistant's device registry. A room Home Assistant fills in on its own is
+  not trusted: the request is re-asked with the satellite's room, or handed
+  to the backend.
+- **Optional: expose new entities automatically (`live_auto_expose`, off by
+  default).** Controllable entities Assist cannot see yet are exposed;
+  helpers and scripts only when they are on a dashboard; locks never.
+- **A parsed command is never ignored.** When Home Assistant recognised a
+  command, the backend is told what it heard, and a "no request" verdict
+  becomes a spoken "I couldn't tell which device you meant" instead of
+  silence.
+- **Confirmation for risky actions is unchanged:** locks, garages, gates,
+  doors and alarms still need a spoken yes, and a state question never runs
+  a control tool, including a yes/no question about a device whose name
+  holds a household word ("Is boost heat downstairs on?"). What Home
+  Assistant's parser heard reaches the backend as a hint, never as an
+  instruction.
+- **Long tasks.** A request that needs a slow tool (the OpenClaw agent, a web
+  search) becomes a background task after a few seconds: the voice says so,
+  the conversation can go on, and the answer is delivered when it lands (in
+  the session, as an announcement, or through the OpenClaw bridge). House
+  commands are not promoted at the short budget; they get up to 8 s first.
+- **Cost controls.** GPT-Live bills per connected second, so a session opens
+  only on a wake and closes after idle, follow-up and hard bounds. Daily
+  session-minute and dollar caps refuse new sessions
+  (`live_max_session_minutes_per_day`, `live_max_usd_per_day`); backend tokens
+  count against the same cap.
+- **Fast paths.** Plain chat can skip the pre-result hold
+  (`live_fast_chat_model`); clock questions and person-location questions go
+  straight to the matching tool; an optional household snapshot
+  (`live_context_entities`) gives the backend current states.
+- **Acknowledgements.** The voice may say only a closed set of waiting
+  phrases before a result; a short fallback clip covers silence after 1.2 s.
+  Clips start on a short silence with a lead burst, like replies, so a cold
+  device no longer drops their first syllable. Once the clip has played, the
+  voice's own acknowledgement is not played as a second one.
+
+### Fixed (both runtimes)
+
+- Action-gate and tool-result handling: a confirmation is bound to the exact
+  prompt that asked for it; placeholder tool arguments are dropped before a
+  call; tool outcomes are classified before anything is spoken.
+
+### Tests
+
+- 1,040 unit tests (the CI floor is now 1,000), including the router,
+  household directory, room context, cost controls and long tasks, and a
+  privacy check that keeps fixtures fictional.
+
 ## 0.17.3 (fork)
 
 - **Fixed: exact named covers failing when the model supplies the wrong Home
