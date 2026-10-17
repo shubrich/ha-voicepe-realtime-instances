@@ -2,6 +2,82 @@
 
 All notable changes to this add-on. Newest first.
 
+## 0.19.3 (fork)
+
+### Added: discussions by voice (off by default)
+
+- `discussions_enabled` adds three generic tools (`list_open_discussions`,
+  `open_discussion`, `propose_decision`) that talk to the agent bridge's
+  `discuss` contract. Only an item's topic and question are said unless the
+  owner asks for details; a decision is read back, staged after a clear yes,
+  and confirmed by the owner by text, never final from voice.
+- While a discussion is open the session gets discussion bounds
+  (`discussion_max_session_s`, `discussion_quiet_s`), its spend reservation
+  grows within the daily caps, the device listens longer after each reply
+  (`discussion_follow_up_ms`), and the room-talk closes stand down.
+
+### Fixed
+
+- **Spoken prompts keep their first word.** The Live voice renderer placed
+  each cached line by the transcript's clock, which drifts from the received
+  audio; cached clips began mid-word ("Sure, one moment." was only "...ment",
+  heard as a short hiss before an answer). The cut is now calibrated to the
+  attempt's own audio and walked back to the speech's onset, and every cached
+  Live line is rendered again.
+- **A wake just as a session closes is no longer lost.** The close's forced
+  idle followed the new wake and stopped the device's mic for the new turn.
+
+## 0.19.2 (fork)
+
+### Changed: answers are heard to the end; the agent keeps a conversation
+
+- **A result spoken from the task list holds the session until it has been
+  heard.** 0.19.1 did this for explanations only. Now every background result
+  the voice is given (a slow lookup that outlived the soft budget, a late
+  action report, an agent answer) keeps the session open while it is being
+  spoken, bounded: only while audio is actually playing, never past the
+  session's own maximum, and no idle time is added once the voice stops. A
+  one-word answer counts as heard too (the floor is 0.6 s of audio, then
+  quiet), so it is not re-delivered into the next conversation. A
+  session closing under it (the device's follow-up cut-off) hands the result to
+  the next route instead of losing it.
+- **The agent bridge now honours the add-on's session key for ordinary
+  questions.** The add-on sends `voicepe-<device>-<random>` and reuses it for
+  follow-ups within 30 minutes from the same device (a fresh key only when a
+  request is still in flight on it), so "and what about tomorrow?" continues
+  the same agent session; before, the reference bridge kept one long-lived
+  session per room. With `answer_only: true` the bridge drops its own
+  "be thorough" lookup directive, which conflicted with the add-on's
+  answer-only brief. Requests without a `session_key` behave as before.
+  See `docs/agent-integration.md`.
+- **Reference bridge: a late answer is a completed result.** Its announce of
+  an answer that outlived the sync window now carries `ok: true` (and its
+  error announce `ok: false`); without `ok` the add-on framed the answer as a
+  request that was not completed (correct per contract, wrong for a bridge
+  that had the answer).
+
+### Fixed
+
+- **One acknowledgement, not two.** When the static fallback clip ("One
+  moment.") was still being sent and the result arrived, the voice's own
+  acknowledgement was released after the clip: two in a row, the second
+  starting as the first ended. The voice's pre-result speech is now held from
+  the moment the clip starts.
+- **Local Home Assistant recognition no longer stays "busy".** The intent
+  socket's lock could stay taken (a timeout landing as the acquire completed),
+  after which every turn waited 1.2 s and took the slower backend path. The
+  lock is taken through a wait that releases a late acquire, and a lock held
+  with no holder or past any real holder's bound is replaced with the socket.
+- **A device class is dropped for an entity that has none.** "Turn off the
+  test switch" (an `input_boolean`) failed when the model also sent
+  `device_class: switch`.
+- **Room conversation after a false wake closes the session silently.** People
+  talking near the device kept a falsely woken session open until its 90 s cap
+  while the voice answered the room. A session now closes without a reply when
+  one unanswered request has been extended four times past 160 characters, or
+  when a second utterance with no request in it arrives within 90 s (across
+  sessions); after such a close only a wake word opens the next session.
+
 ## 0.19.1 (fork)
 
 
