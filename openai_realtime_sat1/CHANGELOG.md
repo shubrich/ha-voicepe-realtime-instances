@@ -2,6 +2,19 @@
 
 All notable changes to this add-on. Newest first.
 
+## 0.19.4 (fork)
+
+### Fixed: the speaker's name in router mode
+
+- The fallback acknowledgement (played when the voice is silent 1.2 s after
+  speech end) replaced the voice's own named acknowledgement, so an
+  identified speaker no longer heard their name. Each configured speaker name
+  now has its own pre-rendered clips ("Sure, one moment, <name>."), played
+  when the voice check identified the speaker this wake.
+- The router backend is told who the voice check identified, and whether by
+  voice print or by pitch only, so "do you know who I am?" and requests that
+  depend on the person are answered instead of refused as unverified.
+
 ## 0.19.3 (fork)
 
 ### Added: discussions by voice (off by default)
