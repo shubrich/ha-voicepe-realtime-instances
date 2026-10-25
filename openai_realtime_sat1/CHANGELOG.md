@@ -2,6 +2,104 @@
 
 All notable changes to this add-on. Newest first.
 
+## 0.19.14 (fork)
+
+### Fixed: a quiet or distant request got silence
+
+- GPT-Live answers a quiet or distant request (a soft voice, a person a few
+  metres away, a loudspeaker across the room) without ever transcribing it.
+  The add-on opens a turn only on the transcript, so the reply was dropped and
+  the user heard nothing until the turn closed 12 s after the wake. Two
+  changes:
+  - The add-on hears the request itself: when speech-level sound follows the
+    wake and no transcript has arrived 4 s after it ends (or the model starts
+    replying to it without one), the turn is closed and the device says
+    "Sorry, I didn't catch that. Could you say it again?" instead of staying
+    silent. Logged with a running count per device. The first second after
+    the wake never counts as the request (the wake chime's leak). The watch
+    listens at a lower bar than the follow-up hold (400 RMS, 3x the room,
+    against 1500): the requests GPT-Live drops are the quiet ones.
+  - Optional: `live_input_gain_max` (new, default 1 = off) brings the mic
+    stream up to a transcribable level before it is sent, with a slow gain
+    that follows the recent speech level, never attenuates and never exceeds
+    the cap. Replaying device audio that was answered but not transcribed
+    showed the same request four times louder transcribed every time. Off
+    until it has been proven on a device; set it to 4 to try it.
+
+### Fixed: a device disconnect mid-session was logged as a handshake timeout
+
+- When a device's connection dropped during a GPT-Live session, cancelling its
+  pipeline dropped the Live socket before the teardown closed the session, and
+  the session supervisor saw a session that was not ready and called it
+  `handshake timeout`, in the log line and the close counters. The gate now
+  learns of the disconnect before the pipeline is cancelled and closes with
+  `device disconnected`; a session that had started and then lost its socket
+  for any other reason closes as `connection lost`. `handshake timeout` now
+  means only that `session.started` never arrived.
+
+### Fixed: the output recording did not hold what the device played
+
+- With `enable_recording` on, output audio was recorded by a pipeline stage,
+  so everything sent to the device around the pipeline was missing: spoken
+  prompts, the fallback acknowledgement clip, announcements and timer lines.
+  Output is now recorded at the device socket, for every audio frame that was
+  actually sent, whichever path sent it. A frame for a device that has gone
+  away is not recorded.
+- The WAV header is kept current on every write, so a recording read while
+  the add-on is still running shows everything recorded so far instead of
+  claiming to be empty.
+
+
+## 0.19.13 (fork)
+
+### Fixed: GPT-Live rejected the opening audio of a session (turn ended on an error)
+
+- The device streams its mic while no session exists (after a
+  background-conversation close it waits for a wake word with the mic open).
+  The add-on held that audio in the pre-roll buffer meant for the handshake
+  and flushed up to 5 s of it at `session.started`, in one burst, ahead of the
+  request itself. GPT-Live accepts input at 1.2x real time in bursts of at
+  most 5 s, so it answered `input_audio_rate_limit_exceeded`, the turn ended
+  on an error and the user was told the request failed (about every second
+  wake on a device without a wake chime). Audio that arrives with no session
+  open or opening is now dropped, the pre-roll holds only what arrives after
+  the open (4 s at most), and every input append (pre-roll flush, reconnect
+  replay, live stream) goes through one pacer that stays under the server's
+  intake rate instead of being rejected.
+
+## 0.19.12 (fork)
+
+### Fixed: a late result for a closed session was sent into the next one
+
+- A router result that landed after its GPT-Live session had closed (a slow
+  tool, a turn the user walked away from) was queued and became the first
+  event of the next wake's session, carrying a delegation id that session
+  had never seen and text about a conversation that was over. Delegation-bound
+  context is now dropped once its session has ended; session-wide context
+  (the voice check) is still carried over.
+
+### Changed: the log names a reply without a transcript
+
+- When GPT-Live replies although it has transcribed no request in the session,
+  the dropped audio is logged as a warning that says so. Measured by replaying
+  device audio: a quiet or thin voice right after the loud wake chime is
+  heard and answered but never transcribed, so the add-on's turn never opens
+  and the user hears nothing; the old "no speech 12s after wake" was the only
+  trace.
+
+## 0.19.11 (fork)
+
+### Fixed: a new question was sometimes never heard after a wake
+
+- A session opened by a wake is seeded with the recent conversation. When
+  that history ended on something other than the assistant's reply (a
+  request the last session never answered, or a tool result read in after
+  the reply), GPT-Live acted on it as soon as the session started: it re-ran
+  the old request and spoke an answer nobody asked for (dropped by the
+  add-on, so nothing was heard), and the new question was never transcribed.
+  The history for a new session now ends on the last reply. Reconnects in
+  the middle of a turn still carry the pending request.
+
 ## 0.19.10 (fork)
 
 ### Fixed: a follow-up spoken late in the window was cut off
