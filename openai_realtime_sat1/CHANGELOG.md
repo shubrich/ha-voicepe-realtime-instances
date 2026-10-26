@@ -2,6 +2,55 @@
 
 All notable changes to this add-on. Newest first.
 
+## 0.19.17 (fork)
+
+### Fixed: a device asked for by a near-miss name or the wrong kind was "not found"
+
+- Home Assistant's tools match a device by exact name and filter by the
+  domain and room the caller passes. The router's backend guesses those from
+  what it heard, so "Is the test switch on?" asked for domain `switch` when
+  the entity is an `input_boolean` helper, matched nothing, and the user was
+  told the switch was not exposed. Spelled-out letters ("P.E."), plurals,
+  misspellings and a dropped word missed the same way.
+- Before any Home Assistant tool call that names a device, the add-on now
+  matches the spoken name against the exposed entities it already reads from
+  Home Assistant (names, aliases, domains, rooms), by spelling, by a rough
+  sound-alike key and by the spoken words being part of one entity's name.
+  When one entity is clearly meant it passes that entity's own name and
+  domain, and drops a room or floor the entity is not in. Logged as
+  `🎯 <tool>: name ... -> ...`.
+- Left alone: an exact name or alias that already fits, a room asked for with
+  a kind of device ("kitchen lights" is still the kitchen's lights), a word
+  several entities share, a lookalike of another kind of device unless it is
+  a near-exact match (a switch and a toggle helper count as the same kind),
+  and tools whose `name` is a list, timer or broadcast.
+
+## 0.19.16 (fork)
+
+### Fixed: a click at the start of every session counted as a reply
+
+- GPT-Live opens every session's output stream with a lone click (peak about
+  170 of 32767, then digital silence), whatever it hears. The add-on counted
+  anything above near-zero as speech, so every wake logged "GPT-Live is
+  replying without having transcribed a request" 0.4 s after the session
+  opened. That one-per-session signal is also what tells the wake watch the
+  model answered a request it never transcribed (0.19.14), so the click used
+  it up before a real untranscribed request could. Outside a reply, audio now
+  has to peak above 300 (about -41 dBFS) to start one; quieter audio is held
+  and released ahead of the first word if a reply follows, or dropped as
+  idle. Inside a reply nothing changes.
+
+## 0.19.15 (fork)
+
+### Fixed: an old conversation answered a new question
+
+- Every GPT-Live session was seeded with the device's whole earlier
+  conversation, however old. Asked "What time is it?" in the morning, the
+  model repeated the previous evening's answer instead of the time the tool
+  had just returned. A session opened more than 5 minutes after the last one
+  closed now starts a new conversation; the system prompt is kept, and a
+  follow-up within 5 minutes still carries over.
+
 ## 0.19.14 (fork)
 
 ### Fixed: a quiet or distant request got silence
