@@ -2,6 +2,95 @@
 
 All notable changes to this add-on. Newest first.
 
+## 0.19.24 (fork)
+
+### Fixed: one device's failed Home Assistant call could cut off another's
+
+- Every device shares one Home Assistant MCP session. When a call failed
+  after it was sent, the session was closed at once, also under calls other
+  devices still had running on it; those then reported "may or may not have
+  completed" even when their action had worked. A failed session is now
+  retired: new calls get a fresh session, and the old one closes once the
+  calls still running on it have finished.
+- A call whose session had already closed before it was sent was reported as
+  "may or may not have completed", although nothing had reached Home
+  Assistant. It is now retried once on a fresh session, and reported as "not
+  reachable" if that fails too.
+
+## 0.19.23 (fork)
+
+### Fixed: a follow-up question went unanswered
+
+- On GPT-Live, the follow-up window (when you can ask again without the wake
+  word) started when the reply's transcript ended, not when the device
+  finished playing it. On a slow Wi-Fi link the device was still speaking for
+  several seconds, so the window had almost run out by the time you could
+  answer, and a question asked after it went to a closed session. The window
+  now waits for the reply's audio to finish playing, and restarts when the
+  device reports that it has, so you always get the full window after hearing
+  the end. A wrong estimate holds the session at most 15 s longer.
+
+## 0.19.22 (fork)
+
+### Fixed: an acknowledgement was cut off mid-word
+
+- On GPT-Live, "One moment, <name>." could stop after "One mo-" when the
+  result of a quick Home Assistant action came in, followed by a pause before
+  the confirmation. Audio that arrived while the voice's words were still a
+  complete acknowledgement now plays to the end; only what the voice says
+  after it is held back or dropped.
+- A household name still streaming in (half of it after "One moment,") no longer counts as
+  a claim, so it no longer cuts the acknowledgement off.
+- An acknowledgement the voice is in the middle of when the request is
+  routed again is judged as one phrase, not from its last words alone.
+
+## 0.19.21 (fork)
+
+### Fixed: a new session restored from the cache resent old tool results
+
+- On the Realtime runtime, a session started from the cached conversation
+  resent every cached tool result with a call id the new session never
+  issued, and the server answered `invalid_tool_call_id`. Tool calls and
+  their results are now left out of the restored context; what the
+  assistant said about them is kept. Reported by @novastate (PR #6).
+
+## 0.19.20 (fork)
+
+### Fixed: a false wake into room talk kept answering
+
+- A transcript longer than 12 words in which the backend finds no request
+  closes the session silently, right after a wake too and even after an
+  acknowledgement played. Before, Home Assistant's parser could pick an
+  intent out of the conversation, which overruled the backend and the device
+  said "I couldn't tell which device you meant", then listened again.
+- A short phrase the parser reads as a command still hears that it was not
+  done, so a misheard command is not met with silence.
+- Once the session is closing quietly, the fallback acknowledgement clip no
+  longer plays.
+
+## 0.19.19 (fork)
+
+### Fixed: GPT-Live's native-language voices fell back to marin
+
+- `nuri`, `juni`, `flitz` (German), `brise`, `sillage` (French), `nira`
+  (Hindi), `harema`, `shida` (Japanese) and `noeul` (Korean) are in OpenAI's
+  GPT-Live voice table but were refused as undocumented, so the session spoke
+  with the server default. They are now accepted (#15, change by @GManzato).
+
+## 0.19.18 (fork)
+
+### Fixed: "thanks" after an answer kept the device listening
+
+- Once a request has been answered, a follow-up that only thanks or signs
+  off ("thanks", "okay, thank you", "that's all") closes the session
+  silently instead of being routed. Before, the device kept listening, routed
+  whatever the room said next and answered it with "Sorry, I didn't catch
+  that."
+- A follow-up after an answer in which the router finds no request also
+  closes silently (it is the room talking), instead of "I didn't catch that".
+  Before any answer, a request with no request found still gets "I didn't
+  catch that", so a misheard command is not met with silence.
+
 ## 0.19.17 (fork)
 
 ### Fixed: a device asked for by a near-miss name or the wrong kind was "not found"
