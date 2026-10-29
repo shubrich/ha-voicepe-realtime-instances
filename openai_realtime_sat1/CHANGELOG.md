@@ -2,6 +2,54 @@
 
 All notable changes to this add-on. Newest first.
 
+## 0.20.3 (fork)
+
+### Fixed: a timer said the name twice, then rang anyway
+
+- The timer line ("Sam, your timer is done.") is voiced by the Live voice
+  and cut out of what it says. When the voice ran its own "Sam," straight
+  into the line, the cut walked back across both, and the name was heard
+  twice. The walk back now stops where the discarded words end.
+- A heard timer no longer rings. The bell after the announcement is for a
+  timer nobody heard: a wake, the button or "stop" on that device from the
+  start of the announcement acknowledges it (a "stop" said during the line
+  used to be missed), and the wait before the bell is 60 s instead of 20 s.
+
+## 0.20.2 (fork)
+
+### Fixed: a command Home Assistant rejected was reported as done
+
+- Home Assistant's MCP tools now type `domain` and `device_class` as lists.
+  A call with `"domain": "light"` (from the router or from the voice) was
+  rejected with "Input validation error: 'light' is not of type 'array'",
+  and the voice still said the lights were off. Arguments are now fitted to
+  each tool's own schema before the call: a single value where a list is
+  declared becomes a one-item list, and a numeric string where a number is
+  declared (`"brightness": "40"`) becomes the number, and "true"/"false"
+  where a boolean is declared becomes the boolean. Nothing else changes.
+- A rejected call is a failure. An MCP result flagged as an error, an
+  "Input validation error", a Home Assistant `error` response, and an
+  `action_done` in which every target failed are never judged a success,
+  so the voice never says it was done. The voice is told what to do instead:
+  a wrong type is sent again as the declared type, never dropped (dropping
+  `domain` would act on every device in the area).
+
+## 0.20.1 (fork)
+
+### Fixed: a reply cut down to its last words after a guess was dropped
+
+- When the voice guessed at an outcome before the verified result ("I've
+  added..."), the guess was dropped, but the result went in while the guess
+  was still streaming. The voice took the result as part of what it was
+  already saying, and the guess's tail then played on its own ("...sliced
+  meats, Alex."). The result now goes in once the guess has stopped
+  streaming (0.6 s of quiet, at most 4 s), so the reply is a fresh one.
+- The voice is told to speak about the result as if for the first time.
+  Told only not to refer to the dropped guess, it could treat a short guess
+  it had already spoken ("Done.") as the answer and say nothing new.
+- If the user starts speaking again during that wait, the result waits for
+  the new words' verdict, as it already did when they spoke before it.
+
 ## 0.20.0 (fork)
 
 ### New: several Voice PEs on one add-on, each with its own settings
