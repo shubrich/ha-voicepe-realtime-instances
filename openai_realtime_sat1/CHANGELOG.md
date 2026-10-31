@@ -2,6 +2,55 @@
 
 All notable changes to this add-on. Newest first.
 
+## 0.20.12 (fork)
+
+### Fixed: a news answer replaced by "nothing was changed"
+
+- 0.20.11 treated any command Home Assistant's parser heard as a request
+  to change the house. For an arbitrary sentence the parser returns a
+  wildcard guess with every slot unmatched ("Can you give me a summary of
+  the elections, please" heard as "turn on", name "give me a summary"), so
+  the search answer was replaced (seen on a test device). Only a parse that
+  resolved its slots counts now.
+
+## 0.20.11 (fork)
+
+### Changed: "done" is decided by what ran, not by how the reply is worded
+
+- The false-success guard used to read the wording of the request and of
+  the reply. It failed both ways: true answers were suppressed ("Can you
+  remind me what's on the shopping list?" answered from the list, a news
+  answer that also read the clock) and false claims got through ("Turn off
+  the kitchen lights" answered "The kitchen lights are off." after only a
+  read, "Lock the front door" answered "The front door is secure now.",
+  "Add milk to the list" answered "Milk is on the list.").
+- Now a request to change the house (Home Assistant's own parser heard a
+  command, or a household verb is in a request rather than a question) is
+  done only if an action tool succeeded. If none did, the voice is told
+  nothing was changed and must not say it was done, whatever the reply
+  says; a question back ("Which lamp?") is still asked. Questions,
+  searches, reads and "can you summarise ..." are spoken as they are.
+- A reply with no tool behind it may still not claim an outcome for a house
+  request, or say the assistant did something itself.
+- "remind", "remember", "make" and "put" count as household verbs only in
+  the forms that ask for a change ("remind me to ...", "remember that ...",
+  "make it warmer", "put milk on the list", "put on some music").
+- Unchanged: every action failed means not done, even with a successful
+  read; a state question still cannot run control tools; locks still need
+  a spoken yes.
+
+## 0.20.10 (fork)
+
+### Fixed: a news answer replaced by "could not be confirmed"
+
+- A request with no household verb that only a web search or memory read
+  answered ("Can you give me a summary of the elections?") had its answer
+  checked like a household command. News wording such as "is now leading"
+  or "have already merged" read as a claimed outcome, so the voice said it
+  could not confirm it instead of giving the answer. Those answers are now
+  spoken. A household request ("Turn off the lights") answered only by a
+  search stays protected.
+
 ## 0.20.9 (fork)
 
 ### Fixed: an answer lost behind a long guess
